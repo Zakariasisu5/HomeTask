@@ -1,6 +1,10 @@
 const { Blockchain, Transaction } = require('./blockchain');
 const axios = require('axios');
 const config = require('../config');
+const persistence = require('../services/persistence.service'); // TASK 2: Import persistence service
+
+// Import Block class for reconstruction
+const { Block } = require('./blockchain');
 
 const { difficulty, miningReward, initialMinerAddress } = config.blockchain;
 const testpvk = config.testpvk;
@@ -16,13 +20,60 @@ const walletReady = axios.get(testpvkString)
     console.error('Failed to fetch wallet info:', err.message);
   });
 
-const blockchain = new Blockchain(difficulty, miningReward);
+// ============================================================================
+// TASK 2: Load saved blockchain or create new one
+// ============================================================================
+// On server startup, we try to load the blockchain from disk.
+// If the file exists and is valid, we restore the saved state.
+// If not, we create a fresh blockchain (with demo data if enabled).
+// ============================================================================
 
-if (config.demoData.enabled) {
-  config.demoData.transactions.forEach(({ from, to, amount }) => {
-    blockchain.addTransaction(new Transaction(from, to, amount));
+const savedData = persistence.load();
+let blockchain;
+
+if (savedData) {
+  // Restore blockchain from saved data
+  blockchain = new Blockchain(savedData.difficulty, savedData.miningReward);
+  
+  // Reconstruct blocks with proper class instances
+  blockchain.chain = savedData.chain.map((blockData) => {
+    const block = new Block(
+      blockData.timestamp,
+      blockData.transactions.map((txData) => {
+        const tx = new Transaction(txData.fromAddress, txData.toAddress, txData.amount);
+        tx.timestamp = txData.timestamp;
+        tx.signature = txData.signature;
+        return tx;
+      }),
+      blockData.previousHash
+    );
+    block.nonce = blockData.nonce;
+    block.hash = blockData.hash;
+    return block;
   });
-  blockchain.minePendingTransactions(initialMinerAddress);
+  
+  // Reconstruct pending transactions with proper class instances
+  blockchain.pendingTransactions = savedData.pendingTransactions.map((txData) => {
+    const tx = new Transaction(txData.fromAddress, txData.toAddress, txData.amount);
+    tx.timestamp = txData.timestamp;
+    tx.signature = txData.signature;
+    return tx;
+  });
+} else {
+  // Create fresh blockchain
+  blockchain = new Blockchain(difficulty, miningReward);
+
+  // Seed with demo data if enabled in config
+  if (config.demoData.enabled) {
+    config.demoData.transactions.forEach(({ from, to, amount }) => {
+      blockchain.addTransaction(new Transaction(from, to, amount));
+    });
+    blockchain.minePendingTransactions(initialMinerAddress);
+    
+    // Save the initial demo blockchain to disk
+    persistence.save(blockchain);
+  }
 }
 
 module.exports = { blockchain, Transaction, walletReady, getWalletData: () => walletData };
+
