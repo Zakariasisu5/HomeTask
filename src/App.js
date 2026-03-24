@@ -3,6 +3,7 @@ import './App.css';
 
 import BlockchainViewer from './components/BlockchainViewer';
 import TransactionForm from './components/TransactionForm';
+import TransactionSearch from './components/TransactionSearch'; // TASK 1: New search component
 import StatsPanel from './components/StatsPanel';
 import Header from './components/Header';
 
@@ -44,6 +45,8 @@ function App() {
           <div className="left-panel">
             <StatsPanel stats={stats} onMine={handleMine} />
             <TransactionForm onTransactionAdded={refresh} />
+            {/* TASK 1: Transaction search component */}
+            <TransactionSearch />
           </div>
 
           <div className="right-panel">
