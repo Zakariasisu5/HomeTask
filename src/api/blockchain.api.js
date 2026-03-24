@@ -27,3 +27,36 @@ export const fetchDashboard = () =>
     chainData,
     statsData,
   }));
+
+// ============================================================================
+// TASK 1: Transaction Search & Filtering
+// ============================================================================
+/**
+ * Search transactions with optional filters.
+ * Builds query string from provided filters and calls the search endpoint.
+ * 
+ * @param {Object} filters - Search filters
+ * @param {string} filters.fromAddress - Partial sender address
+ * @param {string} filters.toAddress - Partial recipient address
+ * @param {number} filters.minAmount - Minimum amount
+ * @param {number} filters.maxAmount - Maximum amount
+ * @param {number} filters.startDate - Start timestamp (ms)
+ * @param {number} filters.endDate - End timestamp (ms)
+ * @returns {Promise} API response with results array
+ */
+export const searchTransactions = (filters) => {
+  const params = new URLSearchParams();
+  
+  // Only add parameters that were provided
+  if (filters.fromAddress) params.append('fromAddress', filters.fromAddress);
+  if (filters.toAddress) params.append('toAddress', filters.toAddress);
+  if (filters.minAmount) params.append('minAmount', filters.minAmount);
+  if (filters.maxAmount) params.append('maxAmount', filters.maxAmount);
+  if (filters.startDate) params.append('startDate', filters.startDate);
+  if (filters.endDate) params.append('endDate', filters.endDate);
+
+  const queryString = params.toString();
+  const url = queryString ? `${ENDPOINTS.TRANSACTIONS_SEARCH}?${queryString}` : ENDPOINTS.TRANSACTIONS_SEARCH;
+  
+  return client.get(url);
+};
