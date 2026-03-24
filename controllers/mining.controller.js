@@ -1,6 +1,7 @@
 const { blockchain } = require('../models');
 const { sendSuccess } = require('../utils/response');
 const logger = require('../utils/logger');
+const persistence = require('../services/persistence.service'); // TASK 2: Import persistence service
 
 const mineBlock = (req, res, next) => {
   try {
@@ -9,6 +10,9 @@ const mineBlock = (req, res, next) => {
     logger.info(`Mining block for reward address: ${miningRewardAddress}`);
     blockchain.minePendingTransactions(miningRewardAddress);
     logger.info(`Block mined successfully: ${blockchain.getLatestBlock().hash}`);
+
+    // TASK 2: Save blockchain state to disk after mining a new block
+    persistence.save(blockchain);
 
     sendSuccess(res, {
       message: 'Block mined successfully',
