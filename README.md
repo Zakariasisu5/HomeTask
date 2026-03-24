@@ -239,3 +239,73 @@ PORT=3003 npm run dev
 ## License
 
 MIT — for learning and assessment purposes.
+
+---
+
+## Changes
+
+### Task 1: Transaction Search & Filtering
+
+**Backend Changes:**
+- Added `GET /api/transactions/search` endpoint in `routes/transaction.routes.js`
+- Implemented `searchTransactions` controller in `controllers/transaction.controller.js`
+  - Accepts optional query parameters: `fromAddress`, `toAddress`, `minAmount`, `maxAmount`, `startDate`, `endDate`
+  - Validates all numeric inputs (amounts must be non-negative, timestamps must be valid)
+  - Returns 400 for invalid inputs with descriptive error messages
+  - Searches across all confirmed transactions in all blocks using `blockchain.chain.flatMap()`
+  - Applies partial, case-insensitive matching for addresses
+  - Returns `{ results: [...], count: N }` format using existing response helpers
+
+**Frontend Changes:**
+- Created `TransactionSearch` component (`src/components/TransactionSearch.js`)
+  - Form with 6 input fields matching all backend filter parameters
+  - Submit button triggers API call via `src/api/blockchain.api.js` client
+  - Loading state during search
+  - "No results" message when search returns empty array
+  - Results list displays: amount, from → to addresses, timestamp
+  - Clear button resets form and results
+  - No direct fetch calls — uses API client layer
+- Added `searchTransactions` function to `src/api/blockchain.api.js`
+- Added `TRANSACTIONS_SEARCH` endpoint to `src/api/endpoints.js`
+- Wired `TransactionSearch` component into `App.js` in the left panel
+
+**Trade-offs:**
+- Search is performed in-memory on the full chain, which is acceptable for small chains but would need indexing/database for production scale
+- Partial address matching uses simple `includes()` rather than regex for simplicity and safety
+- Date inputs use browser's native `datetime-local` for simplicity (no date picker library)
+
+### Task 2: Data Persistence
+
+**Backend Changes:**
+- Created `services/persistence.service.js` with three functions:
+  - `save(blockchain)` — writes chain + pending transactions to `blockchain.json`
+  - `load()` — reads from disk on startup, validates structure, handles missing/corrupt files gracefully
+  - `clear()` — deletes saved file
+- Modified `models/index.js` to load saved blockchain on startup
+  - If file exists and is valid, restores chain and pending transactions
+  - If file is missing, corrupt, or invalid structure, logs warning and starts fresh
+  - Never crashes server — all file errors are caught and logged
+- Integrated persistence into controllers:
+  - `controllers/transaction.controller.js` — calls `persistence.save()` after adding transaction
+  - `controllers/mining.controller.js` — calls `persistence.save()` after mining block
+- All file operations use `utils/logger` for consistent logging
+
+**Integration Points:**
+- Startup: `models/index.js` calls `persistence.load()` before creating blockchain instance
+- After transaction: `addTransaction` controller saves state
+- After mining: `mineBlock` controller saves state
+
+**Trade-offs:**
+- Synchronous file I/O (`fs.writeFileSync`, `fs.readFileSync`) is used for simplicity — acceptable for small chains but would need async operations for production
+- Saves entire blockchain on every change — inefficient for large chains, but simple and reliable for this use case
+- No file locking mechanism — assumes single server instance
+- JSON format is human-readable but less efficient than binary formats
+- No backup/versioning — overwrites file on each save
+
+**Error Handling:**
+- All file operations wrapped in try-catch blocks
+- Corrupt JSON triggers warning and fresh start (never crashes)
+- Invalid structure triggers warning and fresh start
+- Missing file is treated as normal first-run scenario
+- All errors logged with descriptive messages using existing logger utility
+
